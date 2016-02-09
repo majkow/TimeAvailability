@@ -1,23 +1,21 @@
- function onOpen(e) {
-   SpreadsheetApp.getUi()
-   .createMenu('Coniston')
-   .addItem('Prepare new availability form', 'Clearavailability_')
-   .addItem('Produce and email report', 'Reportmaker_')
-   .addSeparator()
-   .addItem('Update form', 'setupAvailability_')
-   .addToUi();
- };
+function onOpen(e) {
+  SpreadsheetApp.getUi()
+  .createMenu('Coniston')
+  .addItem('Prepare new availability form', 'Clearavailability_')
+  .addItem('Produce and email report', 'Reportmaker_')
+  .addSeparator()
+  .addItem('Update form', 'setupAvailability_')
+  .addToUi();
+};
 
 function setupAvailability_ () {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('data');
   var lastRowName = sheet.getRange("A1:A").getValues().filter(String).length;
-  var lastRowTime = sheet.getRange("C1:C").getValues().filter(String).length;
+  var lastRowTime = sheet.getRange("D1:D").getValues().filter(String).length;
   var nameRange = sheet.getRange(1, 1, lastRowName).getValues();
-  var dayRange = sheet.getRange(1, 2, 7).getValues();
-  var timeRange = sheet.getRange(1, 3, lastRowTime).getValues();
-//  Logger.log(dayRange);
-//  Logger.log(timeRange);
+  var dayRange = sheet.getRange(1, 3, 7).getValues();
+  var timeRange = sheet.getRange(1, 4, lastRowTime).getValues();
   Wipeform();
   Setupform(nameRange,dayRange,timeRange);
   
@@ -26,17 +24,16 @@ function setupAvailability_ () {
 };
 
 function Clearavailability_ () {
-  var form = FormApp.openById("1MVvkX4T6P77qQLene4fgKQaRsAwzMBrUi7xSem71oFM");
+  var form = FormApp.openById("enter your form id here");
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('rawdata');
   var lastRow =sheet.getLastRow()-1;
   
   form.deleteAllResponses();
-  if(lastRow <1) {
-  sheet.deleteRows(2,lastRow);
+  if(lastRow >1) {
+    sheet.deleteRows(2,lastRow);
   }
-
-  Clearreport(ss);
+    Clearreport(ss);
 };
 
 function Reportmaker_ () {
@@ -46,103 +43,105 @@ function Reportmaker_ () {
   var dataSheet = ss.getSheetByName('data');
   var reportSheet = ss.getSheetByName('report');
   var lastRowName = dataSheet.getRange("A1:A").getValues().filter(String).length;
-  var lastRowTime = dataSheet.getRange("C1:C").getValues().filter(String).length;
+  var lastRowTime = dataSheet.getRange("D1:D").getValues().filter(String).length;
+  var lastRowEmail = dataSheet.getRange("E1:E").getValues().filter(String).length;
   var nameRange = dataSheet.getRange(1, 1, lastRowName).getValues();
-  var timeRange = dataSheet.getRange(1, 3, lastRowTime).getValues();
+  var timeRange = dataSheet.getRange(1, 4, lastRowTime).getValues();
   
-  makeReport (ss,rawSheet,dataSheet,reportSheet,nameRange,lastRowName,timeRange);
+  Makereport (ss,rawSheet,dataSheet,reportSheet,nameRange,lastRowName,timeRange);
+  Emailreport(ss,reportSheet,dataSheet,lastRowEmail);
 };
 
+function Emailreport(ss,reportSheet,dataSheet,lastRowEmail) {
+  var date = new Date();
+  date.setDate(date.getDate() + 1);
+  var day1 = Utilities.formatDate(date, "GMT+10", "E dd MMM YYYY");
+  date.setDate(date.getDate() + 6);
+  var nextMonday = Utilities.formatDate(date, "GMT+10", "E dd MMM YYYY");
+  var emailTo = dataSheet.getRange(1,5,lastRowEmail).getValues();
+  var emailSubject = "TEST Coniston Availability Report for " + day1 + " to " + nextMonday;
+  var emailBody = "HI Dave Almost finished the Coniston Availability Report just some minor tweeks but should be ready for next monday";
+  var sheets = ss.getSheets();
+  for(var i in sheets){
+    if (sheets[i].getName()!=reportSheet.getName()){
+      sheets[i].hideSheet();
+    }
+  }
+  Logger.log(emailTo)
+  MailApp.sendEmail(emailTo, emailSubject, emailBody, {attachments: ss});
+  for(var i in sheets){
+    if (sheets[i].getName()!=reportSheet.getName()){
+      sheets[i].showSheet();
+    }
+  }  
+};
 
-function makeReport (ss,rawSheet,dataSheet,reportSheet,nameRange,lastRowName,timeRange) {
-  //Fill in latest names from list
-//  var range = reportSheet.getRange(4,1,lastRowName); 
-//  range.setValues(nameRange);
-  
-  var newValue = rawSheet.getRange('E4').getValue().split(', ');
+function Makereport (ss,rawSheet,dataSheet,reportSheet,nameRange,lastRowName,timeRange) {
+  //Declaring varibles 
   var avail = [];
-  var data = [];
   var k= 0;
   var row = 2;
   var repRow = 4;
   var repCol =1;
-  // goes though each day of the week to get the ticks.
-  for (var j=2; j<rawSheet.getLastRow();j++) {
+  var lastRowRaw = rawSheet.getLastRow()+1;
+  
+  for (var j=2; j<lastRowRaw;j++) {  //this is geoing through each row in rawdata to putthe names down
     avail = [];
     avail.push(rawSheet.getRange(j,2).getValue());
-    range = reportSheet.getRange(repRow,repCol,1,42);
-    for (var col=3;col<10;col++) {
+    range = reportSheet.getRange(repRow,repCol,1,43);
+    
+    for (var col=3;col<10;col++) { // goes though each day of the week to get the ticks.
       k= 0;
       var newValue = rawSheet.getRange(row,col).getValue().split(', ');
-      Logger.log("row is "+row + "col is "+col);
-      
+
       //serches for Matches in the rawdata cell and puts a tick if matches and a n if not.  might change that to blank later so i don't have to double handle data
       for (var i=0;i < timeRange.length;i++) {  
-      if (timeRange[i] == newValue[k]) {
-        //        Logger.log("Time "+timeRange[i] +" Matches value "+ newValue[k])
-        avail.push("✔");    
-        k++;
-        Logger.log(avail);
-      }
-      else {
-        avail.push(" ");
-        //        Logger.log("Time "+timeRange[i] +" Did not match "+ newValue[k]);
-        //        Logger.log(avail);
-      }
-      
-    };       
+        if (timeRange[i] == newValue[k]) {
+          avail.push("✔");    
+          k++;
+        }
+        else {
+          avail.push(" ");
+        }
+      };       
     };
-    Logger.log(avail);
-    range.setValues([avail]);
-    repRow++
-    };
-   //  avail.push("N");
-  //  avail.push("✔");
-  //  range = reportSheet.getRange(4,2,1,newValue.length);
-  //  range.setValues(outerArray);
 
+    range.setValues([avail]);
+    repRow++;
+    row++      
+  };
+  // Add remaining members
+  var range = reportSheet.getRange(reportSheet.getLastRow()+1,1,lastRowName); 
+  range.setValues(nameRange);
+
+//  removing Duplicates
+  var data = reportSheet.getRange(4,1, reportSheet.getLastRow()-3).getValues();
+  var newData = new Array();
+  for (h in data) {
+    var newRow = data[h];
+    var duplicate = false;
+    for (g in newData) {
+      if(newRow[0] == newData[g][0]) {
+        duplicate = true;
+      }
+    }
+    if(!duplicate) {
+      newData.push(newRow);
+    }
+  }
+  Logger.log(newData);
   
+  reportSheet.getRange(4,1, reportSheet.getLastRow()-3).clear();
+  reportSheet.getRange(4, 1, newData.length).setValues(newData);
   
-  ////grab the data from rawdata
-  //  var lastRowRawData = rawSheet.getLastRow()+1; 
-  //  var data= [];
-  //  for (var i = 2; i <lastRowRawData; i++) {
-  //    var startCol = 2;
-  //    for (j = startCol; j < 7; j++) {
-  //      data.push(rawSheet.getRange(i,startCol,1,j).getValues());
-  //    }
-//    startCol = 2;
-  //    //data.push(rawSheet.getRange(i,2,1,7).getValues());
-  //    //prints out the data    
-  //  }
-  //   var rangeOfNames = rawSheet.getRange(2, 2, 3).getValues();
-  //   var data = [];
-  //   var values = rawSheet.getRange(2, 3, 3, 6).getValues();
-  //   var idx = 0;
-  //  
-  //   // Get values from raw data sheet
-  //   for (var row in values) {
-  //     var newData = []; // should be 42 long.
-  //     var k = 0;
-  //     for (var col in values[row]) {
-  //       var splitted = values[row][col].split(', ');
-  //       for(var j in splitted) {
-  //         newData[k++] = splitted[j]; 
-  //         Logger.log(k + " " + splitted[j] + "\n");
-  //       }       
-  //     }     
-  //     data[idx++] = newData;
-  //   }
-  //  
-  //  //Logger.log(data);
-  //
-  //   var newrange = reportSheet.getRange(4,2,3,42); 
-  //   //newrange.setValues(data);
+  //sorting
+  var sortRange = reportSheet.getRange(4,1,reportSheet.getLastRow(),reportSheet.getLastColumn());  
+  sortRange.sort({column: 1, ascending: true});
 };
 
 
 function Wipeform () {
-  var form = FormApp.openById("1MVvkX4T6P77qQLene4fgKQaRsAwzMBrUi7xSem71oFM");
+  var form = FormApp.openById("enter your form id here");
   form.deleteAllResponses();
   // Deletes Questions
   while (form.getItems().length >0) {
@@ -151,7 +150,7 @@ function Wipeform () {
 };
 
 function Setupform(nameRange,dayRange,timeRange) {  //Function to create the Form to fill in 
-  var form = FormApp.openById("1MVvkX4T6P77qQLene4fgKQaRsAwzMBrUi7xSem71oFM")
+  var form = FormApp.openById("enter your form id here")
   .setDestination(FormApp.DestinationType.SPREADSHEET, SpreadsheetApp.getActiveSpreadsheet().getId());
     //setup a dropdown list with names from Spreadsheet
   var item = form.addListItem().setRequired(true);
@@ -159,7 +158,7 @@ function Setupform(nameRange,dayRange,timeRange) {  //Function to create the For
   var thisValue = "";
   var arrayOfItems = [];
   var newItem = "";
-  
+ 
   for (var i=0;i<nameRange.length;i++) {
     thisValue = nameRange[i][0];
     newItem = item.createChoice(thisValue);
@@ -176,7 +175,7 @@ function Setupform(nameRange,dayRange,timeRange) {  //Function to create the For
   var thisValue2 = "";
   var arrayOfTimes = [];
   var newItem2 = "";
-  //  This Section will do the Times as this won't change we we do the loop one and just repost the results each day. 
+  //  This Section will do the Times as this won't change we we do the loop once and just repost the results each day. 
   for (var i=0;i<timeRange.length;i++) {
     thisValue2 = timeRange[i][0];
     newItem2 = item2.createChoice(thisValue2);
@@ -208,7 +207,7 @@ function Renamesheet() {
 };
 
 function Clearreport(ss) {
-  var sheet = ss.getSheetByName('Report');
+  var sheet = ss.getSheetByName('report');
   var lastRow = sheet.getLastRow() - 3;
   var lastColumn = sheet.getLastColumn();
       
