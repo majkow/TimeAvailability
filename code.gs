@@ -59,21 +59,62 @@ function Emailreport(ss,reportSheet,dataSheet,lastRowEmail) {
   date.setDate(date.getDate() + 6);
   var nextMonday = Utilities.formatDate(date, "GMT+10", "E dd MMM YYYY");
   var emailTo = dataSheet.getRange(1,5,lastRowEmail).getValues();
-  var emailSubject = "TEST Coniston Availability Report for " + day1 + " to " + nextMonday;
-  var emailBody = "HI Dave Almost finished the Coniston Availability Report just some minor tweeks but should be ready for next monday";
+  var emailSubject = "Coniston Availability Report for " + day1 + " to " + nextMonday;
+  var emailBody = "Coniston Availability for "+ day1 + " to " + nextMonday;
   var sheets = ss.getSheets();
-  for(var i in sheets){
+
+  //hide sheets bar report
+    for(var i in sheets){
     if (sheets[i].getName()!=reportSheet.getName()){
       sheets[i].hideSheet();
     }
   }
-  Logger.log(emailTo)
-  MailApp.sendEmail(emailTo, emailSubject, emailBody, {attachments: ss});
+  //Test email stuff
+  var url = ss.getUrl();
+  url = url.replace(/edit$/,'');
+  
+  /* Specify PDF export parameters
+  // From: https://code.google.com/p/google-apps-script-issues/issues/detail?id=3579
+  exportFormat = pdf / csv / xls / xlsx
+  gridlines = true / false
+  printtitle = true (1) / false (0)
+  size = legal / letter/ A4
+  fzr (repeat frozen rows) = true / false
+  portrait = true (1) / false (0)
+  fitw (fit to page width) = true (1) / false (0)
+  add gid if to export a particular sheet - 0, 1, 2,..
+  */
+  
+  var url_ext = 'export?exportFormat=pdf&format=pdf'   // export as pdf
+  + '&size=A3'                       // paper size
+  + '&portrait=false'                    // orientation, false for landscape
+  + '&fitw=true&source=labnol'           // fit to width, false for actual size
+  + '&sheetnames=false&printtitle=true' // hide optional headers and footers
+  + '&pagenumbers=false&gridlines=true' // hide page numbers
+  + '&fzr=false'                         // do not repeat row headers (frozen rows) on each page
+  + '&gid=';                             // the sheet's Id
+  
+  var token = ScriptApp.getOAuthToken();
+  var sheets = ss.getSheets(); 
+  
+  // Convert to PDF
+  var response = UrlFetchApp.fetch(url + url_ext + sheets[i].getSheetId(), {
+    headers: {
+      'Authorization': 'Bearer ' +  token
+    }
+  });
+  
+  //convert the response to a blob and store in our array
+  var blobs = response.getBlob().setName('Coniston Availability '+ day1 +'.pdf');
+  
+  MailApp.sendEmail(emailTo, emailSubject, emailBody, {attachments: blobs});
+  
+  //show other worksheets again
   for(var i in sheets){
     if (sheets[i].getName()!=reportSheet.getName()){
       sheets[i].showSheet();
     }
-  }  
+  } 
 };
 
 function Makereport (ss,rawSheet,dataSheet,reportSheet,nameRange,lastRowName,timeRange) {
@@ -135,8 +176,11 @@ function Makereport (ss,rawSheet,dataSheet,reportSheet,nameRange,lastRowName,tim
   reportSheet.getRange(4, 1, newData.length).setValues(newData);
   
   //sorting
-  var sortRange = reportSheet.getRange(4,1,reportSheet.getLastRow(),reportSheet.getLastColumn());  
+  var lastRowReport = reportSheet.getLastRow();
+  var lastColReport = reportSheet.getLastColumn();
+  var sortRange = reportSheet.getRange(4,1,lastRowReport,lastColReport);  
   sortRange.sort({column: 1, ascending: true});
+   
 };
 
 
