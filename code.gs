@@ -58,56 +58,69 @@ function Emailreport(ss,reportSheet,dataSheet,lastRowEmail) {
   var day1 = Utilities.formatDate(date, "GMT+10", "E dd MMM YYYY");
   date.setDate(date.getDate() + 6);
   var nextMonday = Utilities.formatDate(date, "GMT+10", "E dd MMM YYYY");
-  var emailTo = dataSheet.getRange(1,5,lastRowEmail).getValues();
+  var emails = dataSheet.getRange(1,5,lastRowEmail).getValues();
   var emailSubject = "Coniston Availability Report for " + day1 + " to " + nextMonday;
   var emailBody = "Coniston Availability for "+ day1 + " to " + nextMonday;
   var sheets = ss.getSheets();
 
+  //set tomorrow date on ss
+  reportSheet.getRange('B1').setValue(day1);
+  reportSheet.getRange('H1').setValue(nextMonday);
   //hide sheets bar report
     for(var i in sheets){
     if (sheets[i].getName()!=reportSheet.getName()){
       sheets[i].hideSheet();
     }
   }
-  //Test email stuff
+   
+ //email stuff
   var url = ss.getUrl();
   url = url.replace(/edit$/,'');
   
   /* Specify PDF export parameters
   // From: https://code.google.com/p/google-apps-script-issues/issues/detail?id=3579
-  exportFormat = pdf / csv / xls / xlsx
-  gridlines = true / false
-  printtitle = true (1) / false (0)
-  size = legal / letter/ A4
-  fzr (repeat frozen rows) = true / false
-  portrait = true (1) / false (0)
-  fitw (fit to page width) = true (1) / false (0)
-  add gid if to export a particular sheet - 0, 1, 2,..
+    exportFormat = pdf / csv / xls / xlsx
+    gridlines = true / false
+    printtitle = true (1) / false (0)
+    size = legal / letter/ A4
+    fzr (repeat frozen rows) = true / false
+    portrait = true (1) / false (0)
+    fitw (fit to page width) = true (1) / false (0)
+    add gid if to export a particular sheet - 0, 1, 2,..
   */
-  
+ 
   var url_ext = 'export?exportFormat=pdf&format=pdf'   // export as pdf
-  + '&size=A3'                       // paper size
-  + '&portrait=false'                    // orientation, false for landscape
-  + '&fitw=true&source=labnol'           // fit to width, false for actual size
-  + '&sheetnames=false&printtitle=true' // hide optional headers and footers
-  + '&pagenumbers=false&gridlines=true' // hide page numbers
-  + '&fzr=false'                         // do not repeat row headers (frozen rows) on each page
-  + '&gid=';                             // the sheet's Id
+                + '&size=A3'                       // paper size
+                + '&portrait=false'                    // orientation, false for landscape
+                + '&fitw=true'           // fit to width, false for actual size
+                + '&sheetnames=false&printtitle=false' // hide optional headers and footers
+                + '&pagenumbers=false&gridlines=true' // hide page numbers and gridlines
+                + '&fzr=false'                         // do not repeat row headers (frozen rows) on each page
+                + '&gid=';                             // the sheet's Id
   
   var token = ScriptApp.getOAuthToken();
   var sheets = ss.getSheets(); 
-  
-  // Convert to PDF
-  var response = UrlFetchApp.fetch(url + url_ext + sheets[i].getSheetId(), {
-    headers: {
-      'Authorization': 'Bearer ' +  token
-    }
-  });
-  
-  //convert the response to a blob and store in our array
-  var blobs = response.getBlob().setName('Coniston Availability '+ day1 +'.pdf');
-  
-  MailApp.sendEmail(emailTo, emailSubject, emailBody, {attachments: blobs});
+     
+  //make an empty array to hold your fetched blobs  
+  var blobs = [];
+ 
+  for (var i=0; i<sheets.length; i++) {
+    
+    // Convert individual worksheets to PDF
+    var response = UrlFetchApp.fetch(url + url_ext + sheets[i].getSheetId(), {
+      headers: {
+        'Authorization': 'Bearer ' +  token
+      }
+    });
+ Logger.log(response)
+    //convert the response to a blob and store in our array
+    blobs = response.getBlob().setName(sheets[i].getName() + '.pdf');
+ 
+  }
+
+  // If allowed to send emails, send the email with the PDF attachment
+   GmailApp.sendEmail(emails, emailSubject, emailBody, {attachments:[blobs]});
+    
   
   //show other worksheets again
   for(var i in sheets){
