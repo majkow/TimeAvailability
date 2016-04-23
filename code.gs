@@ -16,12 +16,9 @@ function setupAvailability_ () {
   var nameRange = sheet.getRange(1, 1, lastRowName).getValues();
   var dayRange = sheet.getRange(1, 3, 7).getValues();
   var timeRange = sheet.getRange(1, 4, lastRowTime).getValues();
-  Wipeform();
-  Setupform(nameRange,dayRange,timeRange);
   
-  Deletesheet();
-  Renamesheet();
-};
+  Updateform(nameRange,dayRange,timeRange);
+  };
 
 function Clearavailability_ () {
   var form = FormApp.openById("enter your form id here");
@@ -49,7 +46,32 @@ function Reportmaker_ () {
   var timeRange = dataSheet.getRange(1, 4, lastRowTime).getValues();
   
   Makereport (ss,rawSheet,dataSheet,reportSheet,nameRange,lastRowName,timeRange);
+  Makepretty (ss,reportSheet);
   Emailreport(ss,reportSheet,dataSheet,lastRowEmail);
+};
+
+function Makepretty (ss,reportSheet) {
+  var lastRowReport = reportSheet.getLastRow();
+  var lastColReport = reportSheet.getLastColumn();
+  var range ="";
+ //dashing all the internal vertical and horizontal grids.
+  reportSheet.getRange(4, 1, (lastRowReport-3), lastColReport).setBorder(null, null, null, null, true, true, 'black', SpreadsheetApp.BorderStyle.DASHED);
+ 
+  //darker lines for each day to make it easier to read
+  reportSheet.getRange(4, 1, (lastRowReport-3)).setBorder(true, true, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID); 
+  reportSheet.getRange(4, 2, (lastRowReport-3),6).setBorder(true, true, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID); 
+  reportSheet.getRange(4, 8, (lastRowReport-3),6).setBorder(true, null, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID); 
+  reportSheet.getRange(4, 14, (lastRowReport-3),6).setBorder(true, null, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID); 
+  reportSheet.getRange(4, 20, (lastRowReport-3),6).setBorder(true, null, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID);
+  reportSheet.getRange(4, 26, (lastRowReport-3),6).setBorder(true, null, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID); 
+  reportSheet.getRange(4, 32, (lastRowReport-3),6).setBorder(true, null, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID); 
+  reportSheet.getRange(4, 38, (lastRowReport-3),6).setBorder(true, null, true, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID); 
+  
+  //make every second line grey
+  for (var i=2;i<lastRowReport;i=i+2) {
+    range= reportSheet.getRange(i, 1, 1, lastColReport);
+    range.setBackgroundRGB(222, 222, 222);
+  }
 };
 
 function Emailreport(ss,reportSheet,dataSheet,lastRowEmail) {
@@ -206,62 +228,19 @@ function Wipeform () {
   }
 };
 
-function Setupform(nameRange,dayRange,timeRange) {  //Function to create the Form to fill in 
-  var form = FormApp.openById("enter your form id here")
-  .setDestination(FormApp.DestinationType.SPREADSHEET, SpreadsheetApp.getActiveSpreadsheet().getId());
-    //setup a dropdown list with names from Spreadsheet
-  var item = form.addListItem().setRequired(true);
-  
-  var thisValue = "";
-  var arrayOfItems = [];
-  var newItem = "";
- 
-  for (var i=0;i<nameRange.length;i++) {
-    thisValue = nameRange[i][0];
-    newItem = item.createChoice(thisValue);
-    arrayOfItems.push(newItem);
-  }
-
-  item.setTitle('Select your name') //creates the choose from list question
-     .setChoices(arrayOfItems)
+function Updateform(nameRange,dayRange,timeRange) {  //Function to edit the Form  
+  var form = FormApp.openById("id of your form here");
+    //edit a dropdown list with names from Spreadsheet
+  var itemName = form.getItems(FormApp.ItemType.LIST);
+  itemName[0].asListItem().setChoiceValues(nameRange);
    
-  //Setup the Days of the week
+  //Update the Days of the week
   for (var x in dayRange) {
-  //declare variables adds new question
-  var item2 = form.addCheckboxItem().showOtherOption(false);
-  var thisValue2 = "";
-  var arrayOfTimes = [];
-  var newItem2 = "";
-  //  This Section will do the Times as this won't change we we do the loop once and just repost the results each day. 
-  for (var i=0;i<timeRange.length;i++) {
-    thisValue2 = timeRange[i][0];
-    newItem2 = item2.createChoice(thisValue2);
-    arrayOfTimes.push(newItem2);
-   }
-  
-  //creates title and addstime slots
-    item2.setTitle(dayRange[x])
-     .setChoices(arrayOfTimes);
-
-    //clear varibales for next loop though
-  item2 = "";
-  thisValue2 = "";
-  arrayOfTimes = [];
-  newItem2 = "";
+    var checkboxItem = form.getItems(FormApp.ItemType.CHECKBOX);    
+    //updates title and time slots
+    checkboxItem[x].asCheckboxItem().setChoiceValues(timeRange).setTitle(dayRange[x]);
   }
-};  
-
-function Deletesheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-    SpreadsheetApp.setActiveSheet(ss.getSheetByName('rawdata'));
-  var newSheet = SpreadsheetApp.getActiveSpreadsheet().deleteActiveSheet();
-};
-
-function Renamesheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  SpreadsheetApp.setActiveSheet(ss.getSheets()[0]);
-  SpreadsheetApp.getActiveSpreadsheet().renameActiveSheet('rawdata');
-};
+}; 
 
 function Clearreport(ss) {
   var sheet = ss.getSheetByName('report');
